@@ -64,14 +64,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
   for(int index = 0 ; index < this->particles.size() ; ++index){
 
-    Particle *particle = &(this->particles[index]) ;
-
-    double predicted_theta = particle->theta + (delta_t * yaw_rate) ;
+    double predicted_theta = this->particles[index].theta + (delta_t * yaw_rate) ;
     double velocities_ratio = velocity / yaw_rate ;
 
-    particle->x += velocities_ratio * (std::sin(predicted_theta) - std::sin(particle->theta)) + x_distribution(generator) ;
-    particle->y += velocities_ratio * (std::cos(particle->theta) - std::cos(predicted_theta)) + y_distribution(generator) ;
-    particle->theta = predicted_theta + theta_distribution(generator) ;
+    this->particles[index].x += velocities_ratio * (std::sin(predicted_theta) - std::sin(this->particles[index].theta)) + x_distribution(generator) ;
+    this->particles[index].y += velocities_ratio * (std::cos(this->particles[index].theta) - std::cos(predicted_theta)) + y_distribution(generator) ;
+    this->particles[index].theta = predicted_theta + theta_distribution(generator) ;
 
   };
 
@@ -100,23 +98,21 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
   for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
 
-    Particle *particle = &(this->particles[particleIndex]);
-
-    // For each observation, translate its coordinates so they are expressed as seen from particle
     std::vector<LandmarkObs> predictedObservations;
 
+    // For each observation translate its coordinates so they are expressed as seen from particle in map coordinates
     for (auto observation : observations) {
-      LandmarkObs translatedLandmark;
-      translatedLandmark.id = observation.id;
+
+      LandmarkObs landmarkPrediction;
 
       // Get magnitude and angle of landmark observation
       double magnitude = std::sqrt((observation.x * observation.x) + (observation.y * observation.y));
-      double angle = particle->theta + std::atan2(observation.y, observation.x);
+      double angle = this->particles[particleIndex].theta + std::atan2(observation.y, observation.x);
 
-      translatedLandmark.x = particle->x + (magnitude * std::cos(angle));
-      translatedLandmark.y = particle->y + (magnitude * std::sin(angle));
+      landmarkPrediction.x = this->particles[particleIndex].x + (magnitude * std::cos(angle));
+      landmarkPrediction.y = this->particles[particleIndex].y + (magnitude * std::sin(angle));
 
-      predictedObservations.push_back(translatedLandmark);
+      predictedObservations.push_back(landmarkPrediction);
 
     }
 
@@ -126,9 +122,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     for (auto observation : predictedObservations) {
 
       Map::single_landmark_s nearestLandmark = map_landmarks.landmark_list.front();
+
       double initial_x_distance = observation.x - nearestLandmark.x_f;
       double initial_y_distance = observation.y - nearestLandmark.y_f;
-      double nearestDistance = std::sqrt((initial_x_distance * initial_x_distance) + (initial_y_distance * initial_y_distance));
+      double nearestDistance = std::sqrt(
+        (initial_x_distance * initial_x_distance) + (initial_y_distance * initial_y_distance));
 
       for (auto landmark : map_landmarks.landmark_list) {
 
@@ -145,10 +143,23 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       nearestLandmarks.push_back(nearestLandmark);
     }
 
+    std::vector<int> associations;
+    std::vector<double> sense_x;
+    std::vector<double> sense_y;
+
+    for (int index = 0 ; index < predictedObservations.size() ; ++index)
+    {
+      associations.push_back(nearestLandmarks[index].id_i) ;
+      sense_x.push_back(predictedObservations[index].x) ;
+      sense_x.push_back(predictedObservations[index].y) ;
+    }
+
+    this->particles[particleIndex] = this->SetAssociations(this->particles[particleIndex], associations, sense_x, sense_y) ;
+
     // Get new weight for the particle
     double weight = 1.0;
 
-    for (int index = 0; particleIndex < observations.size(); particleIndex++)
+    for (int index = 0; index < observations.size(); index++)
     {
       // Multiply weight by probability of observation given landmark position
       double scaling = 1.0 / (M_PI * std_landmark[0] * std_landmark[1]) ;
@@ -162,7 +173,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       weight *= scaling * std::exp(-(x_term + y_term)) ;
     }
 
-    particle->weight = weight ;
+    this->particles[particleIndex].weight = weight ;
 
   }
 
