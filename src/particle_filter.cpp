@@ -27,7 +27,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
   this->num_particles = 10 ;
 
-  std::default_random_engine generator;
+  std::random_device random_device;
+  std::mt19937 generator(random_device());
   std::normal_distribution<double> x_distribution(x, std[0]);
   std::normal_distribution<double> y_distribution(y, std[1]);
   std::normal_distribution<double> theta_distribution(theta, std[2]);
@@ -54,7 +55,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
   //  http://www.cplusplus.com/reference/random/default_random_engine/
 
-  std::default_random_engine generator;
+  std::random_device random_device;
+  std::mt19937 generator(random_device());
+
   std::normal_distribution<double> x_distribution(0, std_pos[0]);
   std::normal_distribution<double> y_distribution(0, std_pos[1]);
   std::normal_distribution<double> theta_distribution(0, std_pos[2]);
@@ -94,12 +97,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
-
-  std::cout << "Should be updating weights now" << std::endl ;
-
-  std::default_random_engine generator;
-  std::normal_distribution<double> landmark_x_distribution(0, std_landmark[0]);
-  std::normal_distribution<double> landmark_y_distribution(0, std_landmark[1]);
 
   for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
 
@@ -185,13 +182,36 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
   }
 
-  std::cout << "But updates aren't done yet" << std::endl ;
 }
 
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+
+
+  std::random_device random_device;
+  std::mt19937 generator(random_device());
+
+  // Get weights
+  std::vector<double> weights ;
+  for(auto particle: this->particles) {
+    weights.push_back(particle.weight) ;
+  }
+
+  std::discrete_distribution<> distribution(weights.begin(), weights.end());
+
+    std::vector<Particle> resampledParticles ;
+
+  for(int index = 0 ; index < this->particles.size() ; ++index)
+  {
+
+    int samplingIndex = distribution(generator) ;
+    resampledParticles.push_back(this->particles[samplingIndex]) ;
+
+  }
+
+  this->particles = resampledParticles ;
 
 }
 
