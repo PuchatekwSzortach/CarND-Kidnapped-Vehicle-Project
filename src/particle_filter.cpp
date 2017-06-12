@@ -147,35 +147,36 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     std::vector<double> sense_x;
     std::vector<double> sense_y;
 
-    for (int index = 0 ; index < predictedObservations.size() ; ++index)
+    // Define associations of predicted observations and their nearest landmarks
+    for (int observationIndex = 0 ; observationIndex < predictedObservations.size() ; ++observationIndex)
     {
-      associations.push_back(nearestLandmarks[index].id_i) ;
-      sense_x.push_back(predictedObservations[index].x) ;
-      sense_x.push_back(predictedObservations[index].y) ;
+      associations.push_back(nearestLandmarks[observationIndex].id_i) ;
+      sense_x.push_back(predictedObservations[observationIndex].x) ;
+      sense_x.push_back(predictedObservations[observationIndex].y) ;
     }
 
     this->particles[particleIndex] = this->SetAssociations(this->particles[particleIndex], associations, sense_x, sense_y) ;
 
-    // Get new weight for the particle
     double weight = 1.0;
 
-    for (int index = 0; index < observations.size(); index++)
+    // Get new weight for the particle
+    for (int observationIndex = 0; observationIndex < observations.size(); observationIndex++)
     {
       // Multiply weight by probability of observation given landmark position
-      double scaling = 1.0 / (M_PI * std_landmark[0] * std_landmark[1]) ;
+      double scaling = 1.0 / (2.0 * M_PI * std_landmark[0] * std_landmark[1]) ;
 
-      double x_difference = (predictedObservations[index].x - nearestLandmarks[index].x_f) ;
-      double x_term = (x_difference * x_difference) / (2 * std_landmark[0] * std_landmark[0]) ;
+      double x_difference = predictedObservations[observationIndex].x - nearestLandmarks[observationIndex].x_f ;
+      double x_term = (x_difference * x_difference) / (2.0 * std_landmark[0] * std_landmark[0]) ;
 
-      double y_difference = (predictedObservations[index].y - nearestLandmarks[index].y_f) ;
-      double y_term = (y_difference * y_difference) / (2 * std_landmark[1] * std_landmark[1]) ;
+      double y_difference = predictedObservations[observationIndex].y - nearestLandmarks[observationIndex].y_f ;
+      double y_term = (y_difference * y_difference) / (2.0 * std_landmark[1] * std_landmark[1]) ;
 
       weight *= scaling * std::exp(-(x_term + y_term)) ;
     }
 
     this->particles[particleIndex].weight = weight ;
 
-  }
+  } // End of loop iterating over particles
 
   // Get total weights for rescaling
   double totalWeight = 0 ;
@@ -200,7 +201,6 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
-
   std::random_device random_device;
   std::mt19937 generator(random_device());
 
@@ -211,8 +211,7 @@ void ParticleFilter::resample() {
   }
 
   std::discrete_distribution<> distribution(weights.begin(), weights.end());
-
-    std::vector<Particle> resampledParticles ;
+  std::vector<Particle> resampledParticles ;
 
   for(int index = 0 ; index < this->particles.size() ; ++index)
   {
