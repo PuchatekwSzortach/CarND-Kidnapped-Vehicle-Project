@@ -82,7 +82,8 @@ int main()
             double previous_velocity = std::stod(j[1]["previous_velocity"].get<std::string>());
             double previous_yawrate = std::stod(j[1]["previous_yawrate"].get<std::string>());
 
-            pf.prediction(delta_t, sigma_pos, previous_velocity, previous_yawrate);
+            std::cout << "Disabled particle filter code for prediction" << std::endl ;
+//            pf.prediction(delta_t, sigma_pos, previous_velocity, previous_yawrate);
           }
 
           // receive noisy observation data from the simulator
@@ -109,11 +110,11 @@ int main()
             noisy_observations.push_back(obs);
           }
 
-          // Update the weights and resample
-          pf.updateWeights(sensor_range, sigma_landmark, noisy_observations, map);
-          pf.resample();
-
-          // Calculate and output the average weighted error of the particle filter over all time steps so far.
+//          // Update the weights and resample
+//          pf.updateWeights(sensor_range, sigma_landmark, noisy_observations, map);
+//          pf.resample();
+//
+//          // Calculate and output the average weighted error of the particle filter over all time steps so far.
           vector<Particle> particles = pf.particles;
           int num_particles = particles.size();
           double highest_weight = -1.0;
@@ -149,6 +150,7 @@ int main()
           auto msg = "42[\"best_particle\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
         }
 
       } else {
