@@ -109,8 +109,8 @@ int main()
             noisy_observations.push_back(obs);
           }
 
-//          // Update the weights and resample
-//          pf.updateWeights(sensor_range, sigma_landmark, noisy_observations, map);
+          // Update the weights and resample
+          pf.updateWeights(sensor_range, sigma_landmark, noisy_observations, map);
 //          pf.resample();
 //
 //          // Calculate and output the average weighted error of the particle filter over all time steps so far.
@@ -135,8 +135,6 @@ int main()
 
           cout << "highest w " << highest_weight << endl;
           cout << "average w " << weight_sum/num_particles << endl;
-
-          std::cout << "Best particle is at " << best_particle.x << ", " << best_particle.y << ", " << best_particle.theta << std::endl ;
 
           json msgJson;
           msgJson["best_particle_x"] = best_particle.x;

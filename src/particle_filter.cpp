@@ -94,6 +94,98 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+  std::cout << "Should be updating weights now" << std::endl ;
+
+  std::default_random_engine generator;
+  std::normal_distribution<double> landmark_x_distribution(0, std_landmark[0]);
+  std::normal_distribution<double> landmark_y_distribution(0, std_landmark[1]);
+
+  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+
+    Particle *particle = &(this->particles[particleIndex]);
+
+    // For each observation, translate its coordinates so they are expressed as seen from particle
+    std::vector<LandmarkObs> predictedObservations;
+
+    for (auto observation : observations) {
+      LandmarkObs translatedLandmark;
+      translatedLandmark.id = observation.id;
+
+      // Get magnitude and angle of landmark observation
+      double magnitude = std::sqrt((observation.x * observation.x) + (observation.y * observation.y));
+      double angle = particle->theta + std::atan2(observation.y, observation.x);
+
+      translatedLandmark.x = particle->x + (magnitude * std::cos(angle));
+      translatedLandmark.y = particle->y + (magnitude * std::sin(angle));
+
+      predictedObservations.push_back(translatedLandmark);
+
+    }
+
+    std::vector<Map::single_landmark_s> nearestLandmarks;
+
+    // For each observation get nearest landmark
+    for (auto observation : predictedObservations) {
+
+      Map::single_landmark_s nearestLandmark = map_landmarks.landmark_list.front();
+      double initial_x_distance = observation.x - nearestLandmark.x_f;
+      double initial_y_distance = observation.y - nearestLandmark.y_f;
+      double nearestDistance = std::sqrt((initial_x_distance * initial_x_distance) + (initial_y_distance * initial_y_distance));
+
+      for (auto landmark : map_landmarks.landmark_list) {
+
+        double x_distance = observation.x - landmark.x_f;
+        double y_distance = observation.y - landmark.y_f;
+        double distance = std::sqrt((x_distance * x_distance) + (y_distance * y_distance));
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestLandmark = landmark;
+        }
+      }
+
+      nearestLandmarks.push_back(nearestLandmark);
+    }
+
+    // Get new weight for the particle
+    double weight = 1.0;
+
+    for (int index = 0; particleIndex < observations.size(); particleIndex++)
+    {
+      // Multiply weight by probability of observation given landmark position
+      double scaling = 1.0 / (M_PI * std_landmark[0] * std_landmark[1]) ;
+
+      double x_difference = (predictedObservations[index].x - nearestLandmarks[index].x_f) ;
+      double x_term = (x_difference * x_difference) / (2 * std_landmark[0] * std_landmark[0]) ;
+
+      double y_difference = (predictedObservations[index].y - nearestLandmarks[index].y_f) ;
+      double y_term = (y_difference * y_difference) / (2 * std_landmark[1] * std_landmark[1]) ;
+
+      weight *= scaling * std::exp(-(x_term + y_term)) ;
+    }
+
+    particle->weight = weight ;
+
+  }
+
+  // Get total weights for rescaling
+  double totalWeight = 0 ;
+
+  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+
+    totalWeight += this->particles[particleIndex].weight ;
+
+  }
+
+  // Rescale weights
+  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+
+    this->particles[particleIndex].weight /= totalWeight ;
+
+  }
+
+  std::cout << "But updates aren't done yet" << std::endl ;
 }
 
 void ParticleFilter::resample() {
