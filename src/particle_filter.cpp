@@ -55,6 +55,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
   //  http://www.cplusplus.com/reference/random/default_random_engine/
 
+  std::cout << "Predicting with delta time " << delta_t << ", velocity " << velocity << " and yaw rate " << yaw_rate << std::endl ;
+
   std::random_device random_device;
   std::mt19937 generator(random_device());
 
@@ -64,12 +66,26 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
   for(int index = 0 ; index < this->particles.size() ; ++index){
 
-    double predicted_theta = this->particles[index].theta + (delta_t * yaw_rate) ;
-    double velocities_ratio = velocity / yaw_rate ;
+    double predicted_theta = this->particles[index].theta + (delta_t * yaw_rate);
 
-    this->particles[index].x += velocities_ratio * (std::sin(predicted_theta) - std::sin(this->particles[index].theta)) + x_distribution(generator) ;
-    this->particles[index].y += velocities_ratio * (std::cos(this->particles[index].theta) - std::cos(predicted_theta)) + y_distribution(generator) ;
-    this->particles[index].theta = predicted_theta + theta_distribution(generator) ;
+    if(std::fabs(yaw_rate) > 0.00001) {
+
+      double velocities_ratio = velocity / yaw_rate;
+
+      this->particles[index].x +=
+        velocities_ratio * (std::sin(predicted_theta) - std::sin(this->particles[index].theta)) + x_distribution(generator);
+
+      this->particles[index].y +=
+        velocities_ratio * (std::cos(this->particles[index].theta) - std::cos(predicted_theta)) + y_distribution(generator);
+
+    } else {
+
+      this->particles[index].x += delta_t * velocity * std::cos(this->particles[index].theta) + x_distribution(generator);
+      this->particles[index].y += delta_t * velocity * std::sin(this->particles[index].theta) + y_distribution(generator);
+
+    }
+
+    this->particles[index].theta = predicted_theta + theta_distribution(generator);
 
   };
 
@@ -85,18 +101,18 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		std::vector<LandmarkObs> observations, Map map_landmarks) {
-	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
-	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
-	//   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-	//   The following is a good resource for the theory:
-	//   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-	//   and the following is a good resource for the actual equation to implement (look at equation 
-	//   3.33
-	//   http://planning.cs.uiuc.edu/node99.html
+  // TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
+  //   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
+  // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
+  //   according to the MAP'S coordinate system. You will need to transform between the two systems.
+  //   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
+  //   The following is a good resource for the theory:
+  //   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
+  //   and the following is a good resource for the actual equation to implement (look at equation
+  //   3.33
+  //   http://planning.cs.uiuc.edu/node99.html
 
-  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+  for (int particleIndex = 0; particleIndex < this->particles.size(); ++particleIndex) {
 
     std::vector<LandmarkObs> predictedObservations;
 
@@ -125,6 +141,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
       double initial_x_distance = observation.x - nearestLandmark.x_f;
       double initial_y_distance = observation.y - nearestLandmark.y_f;
+
       double nearestDistance = std::sqrt(
         (initial_x_distance * initial_x_distance) + (initial_y_distance * initial_y_distance));
 
@@ -143,54 +160,46 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       nearestLandmarks.push_back(nearestLandmark);
     }
 
-    std::vector<int> associations;
-    std::vector<double> sense_x;
-    std::vector<double> sense_y;
-
-    // Define associations of predicted observations and their nearest landmarks
-    for (int observationIndex = 0 ; observationIndex < predictedObservations.size() ; ++observationIndex)
-    {
-      associations.push_back(nearestLandmarks[observationIndex].id_i) ;
-      sense_x.push_back(predictedObservations[observationIndex].x) ;
-      sense_x.push_back(predictedObservations[observationIndex].y) ;
-    }
-
-    this->particles[particleIndex] = this->SetAssociations(this->particles[particleIndex], associations, sense_x, sense_y) ;
-
     double weight = 1.0;
 
+    std::cout << "Calculating weight for particle " << particleIndex << std::endl;
+    std::cout << "Observations size is " << observations.size() << std::endl;
+
     // Get new weight for the particle
-    for (int observationIndex = 0; observationIndex < observations.size(); observationIndex++)
-    {
+    for (int observationIndex = 0; observationIndex < observations.size(); observationIndex++) {
       // Multiply weight by probability of observation given landmark position
-      double scaling = 1.0 / (2.0 * M_PI * std_landmark[0] * std_landmark[1]) ;
+      double scaling = 1.0 / (2.0 * M_PI * std_landmark[0] * std_landmark[1]);
 
-      double x_difference = predictedObservations[observationIndex].x - nearestLandmarks[observationIndex].x_f ;
-      double x_term = (x_difference * x_difference) / (2.0 * std_landmark[0] * std_landmark[0]) ;
+      double x_difference = predictedObservations[observationIndex].x - nearestLandmarks[observationIndex].x_f;
+      double x_term = (x_difference * x_difference) / (2.0 * std_landmark[0] * std_landmark[0]);
 
-      double y_difference = predictedObservations[observationIndex].y - nearestLandmarks[observationIndex].y_f ;
-      double y_term = (y_difference * y_difference) / (2.0 * std_landmark[1] * std_landmark[1]) ;
+      double y_difference = predictedObservations[observationIndex].y - nearestLandmarks[observationIndex].y_f;
+      double y_term = (y_difference * y_difference) / (2.0 * std_landmark[1] * std_landmark[1]);
 
-      weight *= scaling * std::exp(-(x_term + y_term)) ;
+      weight *= scaling * std::exp(-(x_term + y_term));
     }
 
-    this->particles[particleIndex].weight = weight ;
+    std::cout << "Unscaled weight is " << weight << std::endl;
+
+    this->particles[particleIndex].weight = weight;
 
   } // End of loop iterating over particles
 
   // Get total weights for rescaling
-  double totalWeight = 0 ;
+  double totalWeight = 0;
 
-  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+  for (int particleIndex = 0; particleIndex < this->particles.size(); ++particleIndex) {
 
-    totalWeight += this->particles[particleIndex].weight ;
+    totalWeight += this->particles[particleIndex].weight;
 
   }
 
-  // Rescale weights
-  for(int particleIndex = 0 ; particleIndex < this->particles.size() ; ++particleIndex) {
+  std::cout << "TOTAL WEIGHT IS: " << totalWeight << std::endl;
 
-    this->particles[particleIndex].weight /= totalWeight ;
+  // Rescale weights
+  for (int particleIndex = 0; particleIndex < this->particles.size(); ++particleIndex) {
+
+    this->particles[particleIndex].weight /= totalWeight;
 
   }
 
