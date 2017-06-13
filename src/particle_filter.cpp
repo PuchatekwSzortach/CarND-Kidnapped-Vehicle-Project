@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-  this->num_particles = 10 ;
+  this->num_particles = 100 ;
 
   std::random_device random_device;
   std::mt19937 generator(random_device());
@@ -54,8 +54,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   // NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
   //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
   //  http://www.cplusplus.com/reference/random/default_random_engine/
-
-  std::cout << "Predicting with delta time " << delta_t << ", velocity " << velocity << " and yaw rate " << yaw_rate << std::endl ;
 
   std::random_device random_device;
   std::mt19937 generator(random_device());
@@ -162,9 +160,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
     double weight = 1.0;
 
-    std::cout << "Calculating weight for particle " << particleIndex << std::endl;
-    std::cout << "Observations size is " << observations.size() << std::endl;
-
     // Get new weight for the particle
     for (int observationIndex = 0; observationIndex < observations.size(); observationIndex++) {
       // Multiply weight by probability of observation given landmark position
@@ -179,8 +174,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       weight *= scaling * std::exp(-(x_term + y_term));
     }
 
-    std::cout << "Unscaled weight is " << weight << std::endl;
-
     this->particles[particleIndex].weight = weight;
 
   } // End of loop iterating over particles
@@ -193,8 +186,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     totalWeight += this->particles[particleIndex].weight;
 
   }
-
-  std::cout << "TOTAL WEIGHT IS: " << totalWeight << std::endl;
 
   // Rescale weights
   for (int particleIndex = 0; particleIndex < this->particles.size(); ++particleIndex) {

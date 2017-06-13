@@ -120,11 +120,7 @@ int main()
           Particle best_particle;
           double weight_sum = 0.0;
 
-          std::cout << "Particles size is: " << num_particles << std::endl ;
-
           for (int i = 0; i < num_particles; ++i) {
-
-            std::cout << "For particle " << i << " weight is " << particles[i].weight << std::endl ;
 
             if (particles[i].weight > highest_weight) {
 
